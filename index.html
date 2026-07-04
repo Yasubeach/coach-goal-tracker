@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>目標設定＆振り返り | Coach Log</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
+:root{
+  --paper:#F3EEE1;
+  --paper-deep:#EAE2CC;
+  --ink:#1E2A2E;
+  --ink-soft:#4A5A56;
+  --teal:#134F49;
+  --teal-deep:#0D3934;
+  --gold:#B9852E;
+  --gold-soft:#EFE3C4;
+  --line:rgba(19,79,73,0.22);
+  --white:#FFFDF8;
+  --danger:#9C4A3C;
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--paper);
+  background-image:radial-gradient(circle at 1px 1px, rgba(19,79,73,0.06) 1px, transparent 0);
+  background-size:14px 14px;
+  color:var(--ink); font-family:'Zen Kaku Gothic New', sans-serif;
+  min-height:100vh; padding:20px 14px 60px;
+}
+.wrap{ max-width:920px; margin:0 auto; }
+
+header{
+  display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  margin-bottom:14px; border-bottom:2px solid var(--ink); padding-bottom:14px;
+}
+.brand{ display:flex; flex-direction:column; gap:2px; }
+.brand .eyebrow{ font-size:11px; letter-spacing:.18em; color:var(--gold); font-weight:700; text-transform:uppercase; }
+.brand h1{ font-family:'Shippori Mincho', serif; font-size:24px; margin:0; font-weight:700; }
+
+.icon-btn{
+  background:var(--white); border:1.5px solid var(--ink); border-radius:50%;
+  width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:16px;
+}
+.icon-btn:hover{ background:var(--ink); color:var(--white); }
+
+nav.tabs{
+  display:flex; gap:6px; margin-bottom:16px; border-bottom:1.5px solid var(--line); flex-wrap:wrap;
+}
+.tab{
+  padding:9px 16px; font-weight:700; font-size:13.5px; cursor:pointer;
+  border-radius:4px 4px 0 0; color:var(--ink-soft); border:none; background:transparent;
+  font-family:'Zen Kaku Gothic New', sans-serif;
+}
+.tab.active{ background:var(--teal); color:var(--white); }
+
+.panel{ display:none; }
+.panel.active{ display:block; }
+
+.card{
+  background:var(--white); border:1.5px solid var(--ink); border-radius:6px;
+  padding:16px; margin-bottom:14px;
+}
+.card h2{ font-family:'Shippori Mincho', serif; font-size:17px; margin:0 0 10px; }
+
+.save-state{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); margin-bottom:10px; }
+.dot{ width:7px; height:7px; border-radius:50%; background:var(--gold); }
+.dot.saved{ background:var(--teal); }
+.dot.error{ background:var(--danger); }
+
+/* Buttons/inputs */
+.btn{
+  background:var(--teal); color:var(--white); border:none; padding:8px 14px; border-radius:3px;
+  cursor:pointer; font-weight:700; font-size:13px; font-family:'Zen Kaku Gothic New', sans-serif;
+}
+.btn:hover{ background:var(--teal-deep); }
+.btn.ghost{ background:transparent; color:var(--ink); border:1.5px solid var(--ink); }
+.btn.ghost:hover{ background:var(--ink); color:var(--white); }
+.btn.danger{ background:var(--danger); }
+input[type=text], input[type=date], textarea, select{
+  font-family:'Zen Kaku Gothic New', sans-serif; font-size:13.5px;
+  border:1.5px solid var(--ink); border-radius:3px; padding:8px 10px; background:var(--white); color:var(--ink);
+  width:100%;
+}
+textarea{ min-height:90px; resize:vertical; }
+label.field-label{ font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px; }
+.field{ margin-bottom:12px; }
+.row{ display:flex; gap:10px; flex-wrap:wrap; }
+.row > *{ flex:1; min-width:160px; }
+
+/* OW64 grid (reuse) */
+.grid9{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; background:var(--ink); padding:8px; border-radius:6px; }
+.block{ display:grid; grid-template-columns:repeat(3,1fr); gap:4px; background:var(--line); padding:4px; border-radius:3px; }
+.block.center-block{ background:rgba(185,133,46,0.35); }
+.cell{
+  position:relative; background:var(--white); min-height:70px; border-radius:2px; padding:6px 7px;
+  font-size:12px; line-height:1.3; outline:none; overflow:auto; word-break:break-word;
+}
+.cell:focus{ box-shadow:inset 0 0 0 2px var(--teal); }
+.cell:empty:before{ content:attr(data-ph); color:#B9B2A0; font-size:11px; }
+.cell.goal{
+  background:var(--teal); color:var(--white); font-family:'Shippori Mincho', serif; font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center; text-align:center;
+}
+.cell.goal:empty:before{ color:rgba(255,255,255,0.55); }
+.cell.subtheme{ background:var(--gold-soft); font-weight:700; color:var(--teal-deep); border:1px solid rgba(185,133,46,0.4); }
+.cell.mirror{
+  background:var(--paper-deep); color:var(--teal-deep); font-weight:700; cursor:default;
+  display:flex; align-items:center; justify-content:center; text-align:center;
+  border:1px dashed rgba(19,79,73,0.35);
+}
+.cell.action{ background:var(--white); }
+
+/* Weekly goals */
+.week-nav{ display:flex; align-items:center; gap:10px; margin-bottom:12px; justify-content:space-between; }
+.week-nav .label{ font-weight:700; font-family:'Shippori Mincho', serif; font-size:15px; }
+.goal-item{
+  display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);
+}
+.goal-item:last-child{ border-bottom:none; }
+.goal-item input[type=checkbox]{ margin-top:3px; width:16px; height:16px; }
+.goal-item .txt{ flex:1; font-size:13.5px; }
+.goal-item .txt.done{ text-decoration:line-through; color:var(--ink-soft); }
+.goal-item .tag{
+  font-size:10.5px; color:var(--teal-deep); background:var(--gold-soft); padding:2px 6px; border-radius:3px;
+  display:inline-block; margin-top:4px;
+}
+.goal-item .del{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; }
+
+/* Daily log list */
+.log-item{ padding:10px 0; border-bottom:1px solid var(--line); }
+.log-item:last-child{ border-bottom:none; }
+.log-item .date{ font-weight:700; font-size:12.5px; color:var(--teal-deep); margin-bottom:3px; }
+.log-item .body{ font-size:13.5px; white-space:pre-wrap; }
+.log-item .tag{ font-size:10.5px; color:var(--gold); font-weight:700; margin-top:3px; display:block; }
+
+.empty-hint{ color:var(--ink-soft); font-size:13px; padding:14px 0; text-align:center; }
+
+/* Mental note groups */
+.mn-group{ margin-bottom:16px; }
+.mn-group:last-child{ margin-bottom:0; }
+.mn-h3{
+  font-family:'Shippori Mincho', serif; font-size:14px; margin:0 0 8px;
+  color:var(--teal-deep); border-left:4px solid var(--gold); padding-left:8px;
+}
+.mn-row{ display:flex; gap:8px; margin-bottom:6px; }
+.mn-row .mn-text{ flex:1; }
+.mn-row .mn-score{ width:64px; flex:none; text-align:center; }
+
+.ref-box{
+  background:var(--gold-soft); border:1px solid rgba(185,133,46,0.4); border-radius:3px;
+  padding:8px 10px; font-size:13px; color:var(--teal-deep); white-space:pre-wrap;
+}
+
+/* Settings overlay */
+.overlay{ position:fixed; inset:0; background:rgba(20,30,28,0.6); display:none; align-items:center; justify-content:center; z-index:60; padding:16px; }
+.overlay.show{ display:flex; }
+.modal{ background:var(--white); border-radius:6px; padding:22px; max-width:420px; width:100%; border:2px solid var(--ink); max-height:90vh; overflow:auto; }
+.modal h2{ font-family:'Shippori Mincho', serif; margin:0 0 6px; font-size:18px; }
+.modal p.hint{ font-size:12px; color:var(--ink-soft); margin:0 0 14px; line-height:1.6; }
+.modal .field{ margin-bottom:12px; }
+.modal .row.end{ justify-content:flex-end; }
+
+footer{ margin-top:18px; font-size:11.5px; color:var(--ink-soft); text-align:center; }
+
+@media (max-width:640px){
+  .cell{ min-height:52px; font-size:10.5px; padding:4px; }
+  .cell.goal{ font-size:11.5px; min-height:52px; }
+  .brand h1{ font-size:19px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="eyebrow">Coach Log</span>
+      <h1>目標設定＆振り返り</h1>
+    </div>
+    <button class="icon-btn" id="settingsBtn" title="同期設定">⚙</button>
+  </header>
+
+  <div class="save-state"><span class="dot" id="saveDot"></span><span id="saveText">未接続</span></div>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="ow64">OW64</button>
+    <button class="tab" data-tab="goals">目標設定</button>
+    <button class="tab" data-tab="weekly">週間目標</button>
+    <button class="tab" data-tab="daily">メンタルノート</button>
+    <button class="tab" data-tab="analytics">分析</button>
+  </nav>
+
+  <div class="panel active" id="panel-ow64">
+    <div class="card">
+      <div class="grid9" id="grid"></div>
+    </div>
+    <p class="empty-hint">中心＝目標 → 周囲8マス＝基本思考（自動転記） → 各ブロック周囲8マス＝具体的行動</p>
+  </div>
+
+  <div class="panel" id="panel-goals">
+    <div class="card">
+      <h2>目標設定</h2>
+      <p class="empty-hint" style="padding:0 0 12px; text-align:left;">頻繁に書き換えるものではなく、判断の土台として置いておくものです。短期目標は週間目標・メンタルノートの画面にも常に表示されます。</p>
+      <div class="field">
+        <label class="field-label">長期目標（1〜3年後）</label>
+        <textarea id="goalLong" placeholder="例：アジア選手権で金メダルを獲得する"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">中期目標（半年〜1年後）</label>
+        <textarea id="goalMid" placeholder="例：JBVTツアーで年間ランキング上位に入る"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">短期目標（1〜3ヶ月後）</label>
+        <textarea id="goalShort" placeholder="例：サーブとレシーブの精度を90%まで整える"></textarea>
+      </div>
+      <button class="btn" id="saveGoalsBtn">目標を保存</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-weekly">
+    <div class="card">
+      <div class="field" id="shortGoalRefWeekly" style="display:none;">
+        <label class="field-label">短期目標（参照）</label>
+        <div class="ref-box"></div>
+      </div>
+      <div class="week-nav">
+        <button class="btn ghost" id="prevWeek">← 前の週</button>
+        <span class="label" id="weekLabel">-</span>
+        <button class="btn ghost" id="nextWeek">次の週 →</button>
+      </div>
+      <div class="field">
+        <label class="field-label">今週の目標を追加</label>
+        <div class="row">
+          <input type="text" id="newGoalText" placeholder="例：サーブの成功率を7割にする">
+          <select id="newGoalLink"><option value="">OW64の行動と紐づけ（任意）</option></select>
+        </div>
+        <div style="margin-top:8px;"><button class="btn" id="addGoalBtn">追加</button></div>
+      </div>
+      <div id="goalList"></div>
+    </div>
+    <div class="card">
+      <h2>今週の振り返り</h2>
+      <div class="field">
+        <label class="field-label">達成度（10点評価）</label>
+        <input type="number" id="weekScore" min="0" max="10" placeholder="0〜10">
+      </div>
+      <div class="field">
+        <label class="field-label">一言コメント</label>
+        <textarea id="weekComment" placeholder="今週うまくいったこと、来週への課題など"></textarea>
+      </div>
+      <button class="btn" id="saveWeekReviewBtn">今週の振り返りを保存</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-daily">
+    <div class="card">
+      <div class="field" id="shortGoalRefDaily" style="display:none;">
+        <label class="field-label">短期目標（参照）</label>
+        <div class="ref-box"></div>
+      </div>
+      <div class="field">
+        <label class="field-label">日付</label>
+        <input type="date" id="logDate">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>本日の練習目標</h2>
+      <div class="mn-group" data-group="skill">
+        <h3 class="mn-h3">スキル（技術）</h3>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目1"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目2"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目3"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+      </div>
+      <div class="mn-group" data-group="physical">
+        <h3 class="mn-h3">フィジカル（体力）</h3>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目1"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目2"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目3"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+      </div>
+      <div class="mn-group" data-group="mental">
+        <h3 class="mn-h3">メンタル（心）</h3>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目1"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目2"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+        <div class="mn-row"><input type="text" class="mn-text" placeholder="項目3"><input type="number" class="mn-score" min="0" max="10" placeholder="/10"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>本日の成長と課題</h2>
+      <textarea id="logText" placeholder="今日できたこと、気づき、明日への課題など"></textarea>
+      <div style="margin-top:10px;"><button class="btn" id="saveLogBtn">この日の記録を保存</button></div>
+    </div>
+
+    <div class="card">
+      <h2>最近の記録</h2>
+      <div id="logList"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-analytics">
+    <div class="card">
+      <div class="row" style="align-items:flex-end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">表示期間</label>
+          <select id="analyticsRange">
+            <option value="28">直近4週間</option>
+            <option value="84">直近12週間</option>
+            <option value="all">全期間</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>スコア推移（スキル・フィジカル・メンタル）</h2>
+      <div id="dailyChartEmpty" class="empty-hint" style="display:none;">まだ記録がありません</div>
+      <canvas id="dailyScoreChart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <h2>週間目標の達成率推移</h2>
+      <div id="weeklyChartEmpty" class="empty-hint" style="display:none;">まだ週間目標がありません</div>
+      <canvas id="weeklyAchievementChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <footer>データは指定したJSONBin.ioのBinに保存されます。同期キーはこの端末のブラウザにのみ保存され、コードには含まれません。</footer>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>同期設定</h2>
+    <p class="hint">JSONBin.ioのBin IDとAccess Keyを入力してください。この情報はこの端末のブラウザ内だけに保存され、外部には送信されません。同じBin ID・Keyを他の端末にも入力すれば、データが同期されます。</p>
+    <div class="field">
+      <label class="field-label">Bin ID</label>
+      <input type="text" id="binIdInput" placeholder="例：65f2a1...">
+    </div>
+    <div class="field">
+      <label class="field-label">Access Key</label>
+      <input type="text" id="accessKeyInput" placeholder="Read+Update権限のキー">
+    </div>
+    <div class="row end">
+      <button class="btn ghost" id="closeSettings">閉じる</button>
+      <button class="btn" id="saveSettings">保存して接続</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let config = { binId: localStorage.getItem('cl_binId') || '', accessKey: localStorage.getItem('cl_accessKey') || '' };
+let appData = { ow64: { cells:{} }, goals: { long:'', mid:'', short:'' }, weeklyGoals: [], weekReviews: [], dailyLogs: [] };
+let saveTimer = null;
+let currentWeekStart = getMonday(new Date());
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function toISODate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function getMonday(d){
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function fmtShort(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
+
+/* ---------- OW64 grid (same structure as standalone version) ---------- */
+function cellRole(r,c){
+  const br=Math.floor(r/3), bc=Math.floor(c/3), lr=r%3, lc=c%3;
+  const isCenterBlock=(br===1&&bc===1), isLocalCenter=(lr===1&&lc===1);
+  if(isCenterBlock && isLocalCenter) return 'goal';
+  if(isCenterBlock && !isLocalCenter) return 'subtheme';
+  if(!isCenterBlock && isLocalCenter) return 'mirror';
+  return 'action';
+}
+function satelliteForSubtheme(lr,lc){ return { br:lr, bc:lc }; }
+
+function buildGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for(let br=0; br<3; br++){
+    for(let bc=0; bc<3; bc++){
+      const block = document.createElement('div');
+      block.className = 'block' + ((br===1&&bc===1) ? ' center-block' : '');
+      for(let lr=0; lr<3; lr++){
+        for(let lc=0; lc<3; lc++){
+          const r=br*3+lr, c=bc*3+lc, role=cellRole(r,c);
+          const div = document.createElement('div');
+          div.className = 'cell '+role;
+          div.dataset.r=r; div.dataset.c=c;
+          if(role!=='mirror'){ div.contentEditable='true'; div.addEventListener('input', onCellInput); }
+          if(role==='goal') div.dataset.ph='目標';
+          else if(role==='subtheme') div.dataset.ph='基本思考';
+          else if(role==='action') div.dataset.ph='行動';
+          block.appendChild(div);
+        }
+      }
+      grid.appendChild(block);
+    }
+  }
+}
+function renderGridFromData(){
+  document.querySelectorAll('.cell').forEach(div=>{
+    const key = div.dataset.r+'_'+div.dataset.c;
+    div.textContent = (appData.ow64.cells && appData.ow64.cells[key]) || '';
+  });
+}
+function onCellInput(e){
+  const div=e.target, r=parseInt(div.dataset.r), c=parseInt(div.dataset.c), role=cellRole(r,c);
+  if(!appData.ow64.cells) appData.ow64.cells = {};
+  appData.ow64.cells[r+'_'+c] = div.textContent;
+  if(role==='subtheme'){
+    const lr=r%3, lc=c%3, sat=satelliteForSubtheme(lr,lc);
+    const mirrorR=sat.br*3+1, mirrorC=sat.bc*3+1;
+    const mirrorCell = document.querySelector('.cell[data-r="'+mirrorR+'"][data-c="'+mirrorC+'"]');
+    if(mirrorCell) mirrorCell.textContent = div.textContent;
+    appData.ow64.cells[mirrorR+'_'+mirrorC] = div.textContent;
+  }
+  refreshGoalLinkOptions();
+  scheduleSave();
+}
+
+function getActionCells(){
+  const list = [];
+  for(let r=0;r<9;r++){
+    for(let c=0;c<9;c++){
+      if(cellRole(r,c)==='action'){
+        const key=r+'_'+c;
+        const text = appData.ow64.cells && appData.ow64.cells[key];
+        if(text && text.trim()){
+          list.push({ key, text: text.trim() });
+        }
+      }
+    }
+  }
+  return list;
+}
+function refreshGoalLinkOptions(){
+  const actions = getActionCells();
+  const sel = document.getElementById('newGoalLink');
+  const keep = sel.value;
+  sel.innerHTML = '';
+  const first = document.createElement('option');
+  first.value=''; first.textContent = 'OW64の行動と紐づけ（任意）';
+  sel.appendChild(first);
+  actions.forEach(a=>{
+    const opt = document.createElement('option');
+    opt.value = a.key; opt.textContent = a.text;
+    sel.appendChild(opt);
+  });
+  if([...sel.options].some(o=>o.value===keep)) sel.value = keep;
+}
+
+/* ---------- Long/mid/short-term goals ---------- */
+function loadGoalsUI(){
+  const g = appData.goals || { long:'', mid:'', short:'' };
+  document.getElementById('goalLong').value = g.long || '';
+  document.getElementById('goalMid').value = g.mid || '';
+  document.getElementById('goalShort').value = g.short || '';
+  updateShortGoalRefs();
+}
+function updateShortGoalRefs(){
+  const short = (appData.goals && appData.goals.short) || '';
+  [
+    { wrap: document.getElementById('shortGoalRefWeekly') },
+    { wrap: document.getElementById('shortGoalRefDaily') }
+  ].forEach(({wrap})=>{
+    if(!wrap) return;
+    if(short.trim()){
+      wrap.style.display = '';
+      wrap.querySelector('.ref-box').textContent = short;
+    } else {
+      wrap.style.display = 'none';
+    }
+  });
+}
+document.getElementById('saveGoalsBtn').addEventListener('click', ()=>{
+  appData.goals = {
+    long: document.getElementById('goalLong').value,
+    mid: document.getElementById('goalMid').value,
+    short: document.getElementById('goalShort').value
+  };
+  updateShortGoalRefs();
+  scheduleSave();
+});
+
+/* ---------- Weekly goals ---------- */
+function weekGoalsFor(monday){
+  const key = toISODate(monday);
+  return appData.weeklyGoals.filter(g=>g.weekStart===key);
+}
+function renderWeek(){
+  document.getElementById('weekLabel').textContent =
+    fmtShort(currentWeekStart) + ' 〜 ' + fmtShort(addDays(currentWeekStart,6)) + ' の週';
+  const list = document.getElementById('goalList');
+  const goals = weekGoalsFor(currentWeekStart);
+  list.innerHTML = '';
+  if(goals.length===0){
+    list.innerHTML = '<div class="empty-hint">この週の目標はまだありません</div>';
+  } else {
+    goals.forEach(g=>{
+      const div = document.createElement('div');
+      div.className = 'goal-item';
+      const linkedText = g.linkedCell ? (appData.ow64.cells[g.linkedCell] || '') : '';
+      div.innerHTML =
+        '<input type="checkbox" '+(g.done?'checked':'')+' data-id="'+g.id+'">'+
+        '<div class="txt-wrap" style="flex:1;">'+
+          '<div class="txt '+(g.done?'done':'')+'">'+escapeHtml(g.text)+'</div>'+
+          (linkedText ? '<span class="tag">→ '+escapeHtml(linkedText)+'</span>' : '')+
+        '</div>'+
+        '<button class="del" data-del="'+g.id+'">削除</button>';
+      list.appendChild(div);
+    });
+    list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const g = appData.weeklyGoals.find(x=>x.id===cb.dataset.id);
+        if(g){ g.done = cb.checked; renderWeek(); scheduleSave(); }
+      });
+    });
+    list.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        appData.weeklyGoals = appData.weeklyGoals.filter(x=>x.id!==btn.dataset.del);
+        renderWeek(); refreshGoalLinkOptions(); scheduleSave();
+      });
+    });
+  }
+  refreshGoalLinkOptions();
+  const review = appData.weekReviews.find(r=>r.weekStart===toISODate(currentWeekStart));
+  document.getElementById('weekScore').value = review ? review.score : '';
+  document.getElementById('weekComment').value = review ? review.comment : '';
+}
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+document.getElementById('prevWeek').addEventListener('click', ()=>{
+  currentWeekStart = addDays(currentWeekStart, -7); renderWeek();
+});
+document.getElementById('nextWeek').addEventListener('click', ()=>{
+  currentWeekStart = addDays(currentWeekStart, 7); renderWeek();
+});
+document.getElementById('addGoalBtn').addEventListener('click', ()=>{
+  const text = document.getElementById('newGoalText').value.trim();
+  if(!text) return;
+  const link = document.getElementById('newGoalLink').value || null;
+  appData.weeklyGoals.push({
+    id: 'g'+Date.now()+Math.floor(Math.random()*1000),
+    weekStart: toISODate(currentWeekStart),
+    text, linkedCell: link, done: false
+  });
+  document.getElementById('newGoalText').value = '';
+  renderWeek(); scheduleSave();
+});
+
+document.getElementById('saveWeekReviewBtn').addEventListener('click', ()=>{
+  const weekStart = toISODate(currentWeekStart);
+  const score = document.getElementById('weekScore').value;
+  const comment = document.getElementById('weekComment').value;
+  const existing = appData.weekReviews.find(r=>r.weekStart===weekStart);
+  if(existing){ existing.score = score; existing.comment = comment; }
+  else{ appData.weekReviews.push({ weekStart, score, comment }); }
+  scheduleSave();
+});
+
+/* ---------- Daily logs (mental note) ---------- */
+function emptyMn(){
+  return {
+    skill:[{text:'',score:''},{text:'',score:''},{text:'',score:''}],
+    physical:[{text:'',score:''},{text:'',score:''},{text:'',score:''}],
+    mental:[{text:'',score:''},{text:'',score:''},{text:'',score:''}]
+  };
+}
+function readMnFromUI(){
+  const mn = {};
+  document.querySelectorAll('.mn-group').forEach(group=>{
+    const key = group.dataset.group;
+    mn[key] = [...group.querySelectorAll('.mn-row')].map(row=>({
+      text: row.querySelector('.mn-text').value,
+      score: row.querySelector('.mn-score').value
+    }));
+  });
+  return mn;
+}
+function writeMnToUI(mn){
+  const data = mn || emptyMn();
+  document.querySelectorAll('.mn-group').forEach(group=>{
+    const key = group.dataset.group;
+    const rows = [...group.querySelectorAll('.mn-row')];
+    const items = (data[key] || emptyMn()[key]);
+    rows.forEach((row,i)=>{
+      row.querySelector('.mn-text').value = (items[i] && items[i].text) || '';
+      row.querySelector('.mn-score').value = (items[i] && items[i].score) || '';
+    });
+  });
+}
+function mnAverage(mn){
+  if(!mn) return null;
+  const scores = [];
+  ['skill','physical','mental'].forEach(k=>{
+    (mn[k]||[]).forEach(item=>{
+      if(item.score !== '' && item.score !== null && item.score !== undefined){
+        const n = parseFloat(item.score);
+        if(!isNaN(n)) scores.push(n);
+      }
+    });
+  });
+  if(scores.length===0) return null;
+  return (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
+}
+function renderLogList(){
+  const list = document.getElementById('logList');
+  const sorted = [...appData.dailyLogs].sort((a,b)=> b.date.localeCompare(a.date)).slice(0,14);
+  list.innerHTML = '';
+  if(sorted.length===0){
+    list.innerHTML = '<div class="empty-hint">記録はまだありません</div>';
+    return;
+  }
+  sorted.forEach(l=>{
+    const avg = mnAverage(l.mn);
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    div.innerHTML =
+      '<div class="date">'+l.date+(avg ? '　平均評価 '+avg+'/10' : '')+'</div>'+
+      '<div class="body">'+escapeHtml(l.text || '')+'</div>';
+    list.appendChild(div);
+  });
+}
+function loadLogForDate(dateStr){
+  const existing = appData.dailyLogs.find(l=>l.date===dateStr);
+  document.getElementById('logText').value = existing ? (existing.text||'') : '';
+  writeMnToUI(existing ? existing.mn : null);
+}
+document.getElementById('logDate').addEventListener('change', (e)=>{
+  const d = new Date(e.target.value);
+  currentWeekStart = getMonday(d);
+  loadLogForDate(e.target.value);
+});
+document.getElementById('saveLogBtn').addEventListener('click', ()=>{
+  const dateStr = document.getElementById('logDate').value;
+  if(!dateStr) return;
+  const text = document.getElementById('logText').value;
+  const mn = readMnFromUI();
+  const existing = appData.dailyLogs.find(l=>l.date===dateStr);
+  if(existing){ existing.text = text; existing.mn = mn; }
+  else{ appData.dailyLogs.push({ id:'l'+Date.now(), date:dateStr, text, mn }); }
+  renderLogList(); scheduleSave();
+});
+
+/* ---------- Analytics ---------- */
+let dailyChartInstance = null;
+let weeklyChartInstance = null;
+
+function categoryAverage(mn, key){
+  if(!mn || !mn[key]) return null;
+  const scores = mn[key].map(i=>parseFloat(i.score)).filter(n=>!isNaN(n));
+  if(scores.length===0) return null;
+  return scores.reduce((a,b)=>a+b,0)/scores.length;
+}
+
+function renderDailyScoreChart(){
+  const rangeVal = document.getElementById('analyticsRange').value;
+  let logs = [...appData.dailyLogs].sort((a,b)=> a.date.localeCompare(b.date));
+  if(rangeVal !== 'all'){
+    const days = parseInt(rangeVal);
+    const cutoff = addDays(new Date(), -days);
+    const cutoffStr = toISODate(cutoff);
+    logs = logs.filter(l => l.date >= cutoffStr);
+  }
+  const emptyEl = document.getElementById('dailyChartEmpty');
+  const canvas = document.getElementById('dailyScoreChart');
+  if(logs.length===0){
+    emptyEl.style.display = ''; canvas.style.display = 'none';
+    if(dailyChartInstance){ dailyChartInstance.destroy(); dailyChartInstance = null; }
+    return;
+  }
+  emptyEl.style.display = 'none'; canvas.style.display = '';
+
+  const labels = logs.map(l=>l.date.slice(5));
+  const skillData = logs.map(l=>categoryAverage(l.mn,'skill'));
+  const physicalData = logs.map(l=>categoryAverage(l.mn,'physical'));
+  const mentalData = logs.map(l=>categoryAverage(l.mn,'mental'));
+
+  if(dailyChartInstance) dailyChartInstance.destroy();
+  dailyChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'スキル', data:skillData, borderColor:'#134F49', backgroundColor:'#134F49', spanGaps:true, tension:0.25 },
+        { label:'フィジカル', data:physicalData, borderColor:'#B9852E', backgroundColor:'#B9852E', spanGaps:true, tension:0.25 },
+        { label:'メンタル', data:mentalData, borderColor:'#9C4A3C', backgroundColor:'#9C4A3C', spanGaps:true, tension:0.25 }
+      ]
+    },
+    options: {
+      responsive:true,
+      scales: { y: { min:0, max:10, ticks:{ stepSize:2 } } },
+      plugins: { legend: { position:'bottom' } }
+    }
+  });
+}
+
+function renderWeeklyAchievementChart(){
+  const rangeVal = document.getElementById('analyticsRange').value;
+  const weekKeys = [...new Set(appData.weeklyGoals.map(g=>g.weekStart))].sort();
+  let selected = weekKeys;
+  if(rangeVal !== 'all'){
+    const nWeeks = Math.round(parseInt(rangeVal)/7);
+    selected = weekKeys.slice(-nWeeks);
+  }
+  const emptyEl = document.getElementById('weeklyChartEmpty');
+  const canvas = document.getElementById('weeklyAchievementChart');
+  if(selected.length===0){
+    emptyEl.style.display = ''; canvas.style.display = 'none';
+    if(weeklyChartInstance){ weeklyChartInstance.destroy(); weeklyChartInstance = null; }
+    return;
+  }
+  emptyEl.style.display = 'none'; canvas.style.display = '';
+
+  const labels = selected.map(wk=>{
+    const d = new Date(wk); return fmtShort(d)+'〜';
+  });
+  const rates = selected.map(wk=>{
+    const goals = appData.weeklyGoals.filter(g=>g.weekStart===wk);
+    if(goals.length===0) return 0;
+    const done = goals.filter(g=>g.done).length;
+    return Math.round((done/goals.length)*100);
+  });
+
+  if(weeklyChartInstance) weeklyChartInstance.destroy();
+  weeklyChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label:'達成率(%)', data:rates, backgroundColor:'#134F49' }]
+    },
+    options: {
+      responsive:true,
+      scales: { y: { min:0, max:100, ticks:{ stepSize:20 } } },
+      plugins: { legend: { display:false } }
+    }
+  });
+}
+
+function renderAnalytics(){
+  renderDailyScoreChart();
+  renderWeeklyAchievementChart();
+}
+document.getElementById('analyticsRange').addEventListener('change', renderAnalytics);
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab === 'analytics') renderAnalytics();
+  });
+});
+
+/* ---------- Settings / sync ---------- */
+const settingsOverlay = document.getElementById('settingsOverlay');
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  document.getElementById('binIdInput').value = config.binId;
+  document.getElementById('accessKeyInput').value = config.accessKey;
+  settingsOverlay.classList.add('show');
+});
+document.getElementById('closeSettings').addEventListener('click', ()=> settingsOverlay.classList.remove('show'));
+document.getElementById('saveSettings').addEventListener('click', async ()=>{
+  config.binId = document.getElementById('binIdInput').value.trim();
+  config.accessKey = document.getElementById('accessKeyInput').value.trim();
+  localStorage.setItem('cl_binId', config.binId);
+  localStorage.setItem('cl_accessKey', config.accessKey);
+  settingsOverlay.classList.remove('show');
+  await loadFromCloud();
+});
+
+function setSaveState(state, text){
+  const dot = document.getElementById('saveDot');
+  dot.classList.remove('saved','error');
+  if(state) dot.classList.add(state);
+  document.getElementById('saveText').textContent = text;
+}
+
+async function loadFromCloud(){
+  if(!config.binId || !config.accessKey){
+    setSaveState('error', '未接続（右上の⚙から設定してください）');
+    return;
+  }
+  setSaveState(null, '読み込み中…');
+  try{
+    const res = await fetch('https://api.jsonbin.io/v3/b/'+config.binId+'/latest', {
+      headers: { 'X-Access-Key': config.accessKey }
+    });
+    if(!res.ok) throw new Error('read failed: '+res.status);
+    const json = await res.json();
+    const record = json.record || {};
+    appData = {
+      ow64: record.ow64 || { cells:{} },
+      goals: record.goals || { long:'', mid:'', short:'' },
+      weeklyGoals: record.weeklyGoals || [],
+      weekReviews: record.weekReviews || [],
+      dailyLogs: record.dailyLogs || []
+    };
+    renderGridFromData();
+    loadGoalsUI();
+    renderWeek();
+    loadLogForDate(document.getElementById('logDate').value);
+    renderLogList();
+    setSaveState('saved', '同期済み');
+  }catch(err){
+    console.error(err);
+    setSaveState('error', '読み込みエラー：Bin ID / Access Keyを確認してください');
+  }
+}
+
+function scheduleSave(){
+  setSaveState(null, '保存中…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToCloud, 700);
+}
+async function saveToCloud(){
+  if(!config.binId || !config.accessKey){
+    setSaveState('error', '未接続（右上の⚙から設定してください）');
+    return;
+  }
+  try{
+    const res = await fetch('https://api.jsonbin.io/v3/b/'+config.binId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Access-Key': config.accessKey },
+      body: JSON.stringify(appData)
+    });
+    if(!res.ok) throw new Error('write failed: '+res.status);
+    setSaveState('saved', '保存済み');
+  }catch(err){
+    console.error(err);
+    setSaveState('error', '保存エラー：接続を確認してください');
+  }
+}
+
+/* ---------- Init ---------- */
+(function init(){
+  buildGrid();
+  document.getElementById('logDate').value = toISODate(new Date());
+  loadGoalsUI();
+  renderWeek();
+  loadLogForDate(document.getElementById('logDate').value);
+  loadFromCloud();
+})();
+</script>
+</body>
+</html>
